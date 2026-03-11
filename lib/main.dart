@@ -164,7 +164,6 @@ class _HomePageState extends State<HomePage> {
   bool _manualScanEnabled = true;
   bool _isScannerRunning = true;
   bool _isDetectionActive = true;
-  bool _torchEnabled = false;
   bool _holdToScanEnabled = true;
   bool _holdStopAfterOne = false;
   bool _holdPressed = false;
@@ -184,16 +183,27 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _scannerController.addListener(_onScannerControllerChanged);
     unawaited(_initialize());
   }
 
   @override
   void dispose() {
+    _scannerController.removeListener(_onScannerControllerChanged);
     _bannerHideTimer?.cancel();
     _distanceHintClearTimer?.cancel();
     _scannerController.dispose();
     super.dispose();
   }
+
+  void _onScannerControllerChanged() {
+    if (!mounted) {
+      return;
+    }
+    setState(() {});
+  }
+
+  bool get _isTorchOn => _scannerController.value.torchState == TorchState.on;
 
   Future<void> _initialize() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -468,14 +478,15 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _toggleTorch() async {
+    if (!_isScannerRunning) {
+      _showSnack('相机未开启，无法切换闪光灯');
+      return;
+    }
     try {
       await _scannerController.toggleTorch();
-      if (!mounted) {
-        return;
+      if (mounted) {
+        setState(() {});
       }
-      setState(() {
-        _torchEnabled = !_torchEnabled;
-      });
     } catch (e) {
       _showSnack('切换闪光灯失败: $e');
     }
@@ -1363,7 +1374,7 @@ class _HomePageState extends State<HomePage> {
       score += 0.25;
     }
     score += ((2000 - _decodeIntervalMs) / 1000) * 0.15;
-    if (_torchEnabled) {
+    if (_isTorchOn) {
       score += 0.12;
     }
     if (score >= 0.75) {
@@ -1393,7 +1404,7 @@ class _HomePageState extends State<HomePage> {
               Text('解码启用：${_isDetectionActive ? '是' : '否'}'),
               Text('按住扫描：${_holdToScanEnabled ? '启用' : '关闭'}'),
               Text('解码频率：${_formatIntervalShort(_decodeIntervalMs)}'),
-              Text('闪光灯：${_torchEnabled ? '开启' : '关闭'}'),
+              Text('闪光灯：${_isTorchOn ? '开启' : '关闭'}'),
             ],
           ),
           actions: <Widget>[
@@ -1571,8 +1582,8 @@ class _HomePageState extends State<HomePage> {
           ),
           IconButton(
             onPressed: _toggleTorch,
-            tooltip: _torchEnabled ? '关闭闪光灯' : '打开闪光灯',
-            icon: Icon(_torchEnabled ? Icons.flash_on : Icons.flash_off),
+            tooltip: _isTorchOn ? '关闭闪光灯' : '打开闪光灯',
+            icon: Icon(_isTorchOn ? Icons.flash_on : Icons.flash_off),
           ),
           IconButton(onPressed: _openSettings, tooltip: '设置', icon: const Icon(Icons.settings)),
         ],
