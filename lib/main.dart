@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:excel/excel.dart';
+import 'package:excel/excel.dart' as xls;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -756,6 +756,26 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Future<void> _deleteTable(int tableIndex) async {
+    if (tableIndex < 0 || tableIndex >= _tables.length) {
+      return;
+    }
+    final String tableName = _tableDisplayName(tableIndex, _tables[tableIndex]);
+    final bool ok = await _showYesNoDialog(
+      title: '确认删除整表',
+      message: '确定删除表“$tableName”及其全部记录吗？',
+      confirmText: '删除整表',
+    );
+    if (!ok) {
+      return;
+    }
+
+    setState(() {
+      _tables.removeAt(tableIndex);
+    });
+    await _saveToDisk();
+  }
+
   String _ymd(DateTime date) {
     final String y = date.year.toString().padLeft(4, '0');
     final String m = date.month.toString().padLeft(2, '0');
@@ -921,14 +941,14 @@ class _HomePageState extends State<HomePage> {
       final String datePart = _ymd(DateTime.now());
       int success = 0;
       final List<String> failed = <String>[];
-      final CellStyle centeredStyle = CellStyle(
-        horizontalAlign: HorizontalAlign.Center,
-        verticalAlign: VerticalAlign.Center,
+      final xls.CellStyle centeredStyle = xls.CellStyle(
+        horizontalAlign: xls.HorizontalAlign.Center,
+        verticalAlign: xls.VerticalAlign.Center,
       );
-      final CellStyle centeredYellowStyle = CellStyle(
-        horizontalAlign: HorizontalAlign.Center,
-        verticalAlign: VerticalAlign.Center,
-        backgroundColorHex: ExcelColor.yellow100,
+      final xls.CellStyle centeredYellowStyle = xls.CellStyle(
+        horizontalAlign: xls.HorizontalAlign.Center,
+        verticalAlign: xls.VerticalAlign.Center,
+        backgroundColorHex: xls.ExcelColor.yellow100,
       );
 
       for (int i = 0; i < _tables.length; i++) {
@@ -943,30 +963,32 @@ class _HomePageState extends State<HomePage> {
         final String targetPath = '$dirPath${Platform.pathSeparator}$fileName';
 
         try {
-          final Excel excel = Excel.createExcel();
+          final xls.Excel excel = xls.Excel.createExcel();
           final String sheetName = 'Sheet1';
-          final Sheet sheet = excel[sheetName];
-          sheet.appendRow(<CellValue>[
-            TextCellValue('数量行'),
-            TextCellValue('编码'),
-            TextCellValue('备注'),
+          final xls.Sheet sheet = excel[sheetName];
+          sheet.appendRow(<xls.CellValue>[
+            xls.TextCellValue('数量行'),
+            xls.TextCellValue('编码'),
+            xls.TextCellValue('备注'),
           ]);
           for (int col = 0; col < 3; col++) {
-            final Data cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: 0));
+            final xls.Data cell = sheet.cell(
+              xls.CellIndex.indexByColumnRow(columnIndex: col, rowIndex: 0),
+            );
             cell.cellStyle = centeredStyle;
           }
           for (int rowIndex = 0; rowIndex < table.rows.length; rowIndex++) {
             final CodeRow row = table.rows[rowIndex];
-            sheet.appendRow(<CellValue>[
-              IntCellValue(rowIndex + 1),
-              TextCellValue(row.code),
-              TextCellValue((row.note ?? '').trim()),
+            sheet.appendRow(<xls.CellValue>[
+              xls.IntCellValue(rowIndex + 1),
+              xls.TextCellValue(row.code),
+              xls.TextCellValue((row.note ?? '').trim()),
             ]);
             final bool hasNote = (row.note ?? '').trim().isNotEmpty;
-            final CellStyle style = hasNote ? centeredYellowStyle : centeredStyle;
+            final xls.CellStyle style = hasNote ? centeredYellowStyle : centeredStyle;
             for (int col = 0; col < 3; col++) {
-              final Data cell = sheet.cell(
-                CellIndex.indexByColumnRow(columnIndex: col, rowIndex: rowIndex + 1),
+              final xls.Data cell = sheet.cell(
+                xls.CellIndex.indexByColumnRow(columnIndex: col, rowIndex: rowIndex + 1),
               );
               cell.cellStyle = style;
             }
@@ -1420,13 +1442,25 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildTableHeader() {
     return Container(
-      color: Colors.black12,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      child: const Row(
+      decoration: BoxDecoration(
+        color: Colors.blueGrey.shade50,
+        border: Border(
+          bottom: BorderSide(color: Colors.blueGrey.shade100),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      child: Row(
         children: <Widget>[
-          SizedBox(width: 56, child: Text('行')),
-          Expanded(child: Text('编码')),
-          SizedBox(width: 82, child: Text('操作')),
+          const SizedBox(width: 52, child: Text('行', style: TextStyle(fontSize: 12))),
+          const Expanded(child: Text('编码', style: TextStyle(fontSize: 12))),
+          SizedBox(
+            width: 76,
+            child: Text(
+              '操作',
+              textAlign: TextAlign.right,
+              style: TextStyle(fontSize: 12, color: Colors.blueGrey.shade700),
+            ),
+          ),
         ],
       ),
     );
@@ -1437,35 +1471,52 @@ class _HomePageState extends State<HomePage> {
     final bool hasNote = noteText.isNotEmpty;
 
     return Container(
-      color: hasNote ? Colors.yellow.shade100 : null,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: hasNote ? Colors.yellow.shade100 : Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Colors.blueGrey.shade50),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
-          SizedBox(width: 56, child: Text('${rowIndex + 1}')),
+          SizedBox(
+            width: 52,
+            child: Text(
+              '${rowIndex + 1}',
+              style: TextStyle(fontSize: 12, color: Colors.blueGrey.shade700),
+            ),
+          ),
           Expanded(
             child: Text(
               row.code,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13),
+              style: const TextStyle(fontSize: 12.5),
             ),
           ),
           SizedBox(
-            width: 82,
+            width: 88,
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
                 IconButton(
                   onPressed: () => _editNote(tableIndex, rowIndex),
                   tooltip: hasNote ? '编辑备注' : '添加备注',
                   visualDensity: VisualDensity.compact,
+                  iconSize: 18,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(width: 28, height: 28),
                   icon: Icon(hasNote ? Icons.sticky_note_2_outlined : Icons.note_add_outlined),
                 ),
                 IconButton(
                   onPressed: () => _deleteRow(tableIndex, rowIndex),
                   tooltip: '删除',
                   visualDensity: VisualDensity.compact,
+                  iconSize: 18,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints.tightFor(width: 28, height: 28),
                   icon: const Icon(Icons.delete_outline),
                 ),
               ],
@@ -1487,9 +1538,22 @@ class _HomePageState extends State<HomePage> {
       itemBuilder: (BuildContext context, int tableIndex) {
         final CodeTable table = _tables[tableIndex];
         return Card(
-          margin: const EdgeInsets.only(bottom: 10),
+          margin: const EdgeInsets.only(bottom: 8),
+          elevation: 1.2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           child: ExpansionTile(
             initiallyExpanded: true,
+            shape: const RoundedRectangleBorder(
+              side: BorderSide(color: Colors.transparent, width: 0),
+              borderRadius: BorderRadius.all(Radius.circular(12)),
+            ),
+            collapsedShape: const RoundedRectangleBorder(
+              side: BorderSide(color: Colors.transparent, width: 0),
+              borderRadius: BorderRadius.all(Radius.circular(12)),
+            ),
+            tilePadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+            childrenPadding: const EdgeInsets.only(bottom: 4),
+            visualDensity: VisualDensity.compact,
             title: Row(
               children: <Widget>[
                 Expanded(
@@ -1497,6 +1561,7 @@ class _HomePageState extends State<HomePage> {
                     _tableDisplayName(tableIndex, table),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                   ),
                 ),
                 IconButton(
@@ -1504,15 +1569,28 @@ class _HomePageState extends State<HomePage> {
                   onPressed: () => _editTableName(tableIndex),
                   icon: const Icon(Icons.edit_note),
                   visualDensity: VisualDensity.compact,
+                  iconSize: 20,
+                  constraints: const BoxConstraints.tightFor(width: 34, height: 34),
+                ),
+                IconButton(
+                  tooltip: '删除整表',
+                  onPressed: () => _deleteTable(tableIndex),
+                  icon: const Icon(Icons.delete_sweep_outlined),
+                  visualDensity: VisualDensity.compact,
+                  iconSize: 20,
+                  constraints: const BoxConstraints.tightFor(width: 34, height: 34),
                 ),
               ],
             ),
-            subtitle: Text('${table.rows.length}行  键 ${table.typeKey}'),
+            subtitle: Text(
+              '${table.rows.length}行  键 ${table.typeKey}',
+              style: TextStyle(fontSize: 11.5, color: Colors.blueGrey.shade700),
+            ),
             children: <Widget>[
               _buildTableHeader(),
               for (int rowIndex = 0; rowIndex < table.rows.length; rowIndex++)
                 _buildTableRow(tableIndex, rowIndex, table.rows[rowIndex]),
-              const SizedBox(height: 6),
+              const SizedBox(height: 2),
             ],
           ),
         );
@@ -1563,7 +1641,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Barcode Logger'),
+        title: const Text('扫码记录', style: TextStyle(fontSize: 16)),
         actions: <Widget>[
           IconButton(
             onPressed: _toggleScanner,
