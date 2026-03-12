@@ -1,28 +1,27 @@
-# qr-barcode-recorder
+﻿# qr-barcode-recorder
 
-一个基于 Flutter 的安卓扫码记录工具，用于快速识别 QR/条码并按结构分表管理，支持备注、提醒和导出 Excel。
+Flutter Android app for QR/barcode logging with structure-based table grouping, note tagging, reminders, and Excel export.
 
-## 主要功能
+Chinese README: [README.zh-CN.md](README.zh-CN.md)
 
-- 扫描 QR 码与常见条形码
-- 按编码结构自动分表（支持字母/数字/符号）
-- 表内记录数量、编码、备注（备注行高亮）
-- 每表独立步长提醒（如每 10 条提醒一次）
-- 按住扫描、暂停/继续、闪光灯、搜索
-- 选择表格导出 Excel（可自定义文件名）
+## Features
 
-## 运行方式
+- Scan QR and common linear barcodes
+- Auto-group records by per-character structure signature (`A`/`N`/`S`)
+- Per-table counting with independent reminder step
+- Add/edit notes (rows with notes are highlighted)
+- Hold-to-scan, pause/resume, torch toggle, and search
+- Export selected tables to Excel with custom filenames
 
-1. 安装 Flutter 环境并连接 Android 设备
-2. 在项目目录执行：
+## Run
 
 ```bash
 flutter pub get
 flutter run
 ```
 
-## 数据与导出
+## Export
 
-- 本地会自动保存扫描数据
-- 导出时可选择一个或多个表
-- Excel 内容居中显示，带备注的行会标黄
+- Choose one or more tables to export
+- Data is centered in Excel cells
+- Rows with notes use a yellow background
